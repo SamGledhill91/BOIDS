@@ -129,41 +129,56 @@ cdef class BoidSimulation:
         boid.x += boid.vx
         boid.y += boid.vy
 
-    cdef void simulate_boids(self, bint render=False):
+    cpdef simulate_boids(self, bint render):
         print(f"Simulating {self.num_boids} Boids for {self.num_frames} frames")
-
-        cdef float[:, :, ::1] boid_states = np.zeros((self.num_frames, self.num_boids, 4), dtype=np.float32)
+    
+        # Use a list to store arrays for each frame
+        cdef list boid_states_list = []
+        
+        cdef float[:, ::1] frame_boids
+    
         cdef int frame_num
-
+    
         start_time = time.time()
-
+    
         self.init_boids()
-
+    
         for frame_num in range(self.num_frames):
             self.update_kdtree()  # Update KDTree at each frame
-            for boid in self.boids:
+    
+            # Create an array for the current frame
+            frame_boids = np.zeros((self.num_boids, 4), dtype=np.float32)
+    
+            for i, boid in enumerate(self.boids):
                 self.update_velocity_and_position(boid)
-
-            boid_states[frame_num] = np.array([(boid.x, boid.y, boid.vx, boid.vy) for boid in self.boids], dtype=np.float32)
-
+    
+                # Update the array for the current boid
+                frame_boids[i, 0] = boid.x
+                frame_boids[i, 1] = boid.y
+                frame_boids[i, 2] = boid.vx
+                frame_boids[i, 3] = boid.vy
+    
+            # Append the array for the current frame to the list
+            boid_states_list.append(frame_boids)
+    
+        # Convert the list to a NumPy array
+        cdef float[:, :, ::1] boid_states = np.array(boid_states_list)
+    
         elapsed_time = time.time() - start_time
         print("SIMULATION COMPLETE")
         print(f"Time taken: {elapsed_time:.3f} seconds")
-
-# =============================================================================
-#         if render:
-#             for frame_num, frame_boids in enumerate(boid_states):
-#                 image = Image.new("RGB", (self.width, self.height), (255, 255, 255))
-#                 draw = ImageDraw.Draw(image)
-# 
-#                 for boid in frame_boids:
-#                     draw.ellipse(
-#                         (boid[0] - 2, boid[1] - 2, boid[0] + 2, boid[1] + 2),
-#                         fill=(0, 0, 0)
-#                     )
-# 
-#                 image.save(f"frame_{frame_num:03d}.png")
-# 
-#             print(f"{self.num_frames} frames have been saved.")
-# 
-# =============================================================================
+    
+        if render:
+            for frame_num, frame_boids in enumerate(boid_states):
+                image = Image.new("RGB", (self.width, self.height), (255, 255, 255))
+                draw = ImageDraw.Draw(image)
+    
+                for boid in frame_boids:
+                    draw.ellipse(
+                        (boid[0] - 2, boid[1] - 2, boid[0] + 2, boid[1] + 2),
+                        fill=(0, 0, 0)
+                    )
+    
+                image.save(f"frame_{frame_num:03d}.png")
+    
+            print(f"{self.num_frames} frames have been saved.")
